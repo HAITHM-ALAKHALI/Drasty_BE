@@ -65,38 +65,47 @@ public function update(Request $request, int $id)
         ], 404);
     }
 
-    // التحقق من الحقول المسموح بتعديلها فقط مع استثناء المادة الحالية من فحص التكرار
-    $validated = $request->validate([
-        'course_name_ar' => [
-            'sometimes',
-            'required',
-            'string',
-            'max:150',
-            Rule::unique('courses', 'name')->ignore($id, 'course_id')
-        ],
-        'code' => [
-            'sometimes',
-            'required',
-            'string',
-            'max:20',
-            Rule::unique('courses', 'code')->ignore($id, 'course_id')
-        ],
-        'description' => 'nullable|string',
-    ], [
-        'name.required' => 'اسم المادة مطلوب عند التعديل.',
-        'name.unique'   => 'اسم المادة مستخدم بالفعل لمادة أخرى.',
-        'code.required' => 'كود المادة مطلوب.',
-        'code.unique'   => 'كود المادة مسجل لمادة أخرى.',
-    ]);
+    try {
+        $validated = $request->validate([
+            'course_code' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('courses', 'course_code')->ignore($id, 'course_id'),
+            ],
+            'course_name_ar' => 'sometimes|required|string|max:150',
+            'course_name_en' => 'sometimes|required|string|max:150',
+            'credit_hours'   => 'sometimes|required|integer|min:1|max:10',
+        ], [
+            'course_code.unique'      => 'رمز المادة مسجل لمادة أخرى مسبقاً.',
+            'course_code.required'    => 'رمز المادة مطلوب.',
+            'course_name_ar.required' => 'اسم المادة بالعربي مطلوب.',
+            'course_name_en.required' => 'اسم المادة بالإنجليزي مطلوب.',
+            'credit_hours.required'   => 'عدد الساعات مطلوب.',
+        ]);
 
-    // تحديث البيانات المسموح بها فقط دون لمس الـ Primary Key
-    $course->update($validated);
+        $course->update($validated);
 
-    return response()->json([
-        'status'  => true,
-        'message' => 'تم تحديث بيانات المادة الدراسية بنجاح.',
-        'data'    => $course
-    ], 200);
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث بيانات المادة الدراسية بنجاح.',
+            'data'    => $course
+        ], 200);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'فشل التحقق من البيانات المدخلة',
+            'errors'  => $e->errors()
+        ], 422);
+    } catch (Exception $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ أثناء تعديل بيانات المادة.',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
 }
 
     public function destroy(int $id)

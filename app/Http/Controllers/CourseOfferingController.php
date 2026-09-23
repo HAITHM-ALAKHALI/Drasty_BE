@@ -79,53 +79,53 @@ class CourseOfferingController extends Controller
         }
     }
 
-    public function update(Request $request, int $id)
-{
-    // جلب الطرح مع المادة المرتبطة
-    $offering = CourseOffering::with('course')->find($id);
+public function update(Request $request, int $id)
+    {
+        $offering = CourseOffering::find($id);
 
-    if (!$offering || !$offering->course) {
-        return response()->json([
-            'status'  => false,
-            'message' => 'سجل طرح المادة أو المادة المرتبطة به غير موجود.'
-        ], 404);
+        if (!$offering) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'سجل طرح المادة المطلوب غير موجود.'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'course_id'   => 'required|integer|exists:courses,course_id',
+            'semester_id' => [
+                'required',
+                'integer',
+                'exists:semesters,semester_id',
+                // منع التكرار مع استثناء السجل الحالي نفسه
+                Rule::unique('course_offerings')->where(function ($query) use ($request) {
+                    return $query->where('course_id', $request->course_id);
+                })->ignore($id, 'offering_id'),
+            ],
+        ], [
+            'course_id.required'   => 'المادة الدراسية مطلوبة.',
+            'course_id.exists'     => 'المادة المختارة غير صالحة.',
+            'semester_id.required' => 'الفصل الدراسي مطلوب.',
+            'semester_id.exists'   => 'الفصل الدراسي المختار غير صالح.',
+            'semester_id.unique'   => 'هذه المادة مطروحة مسبقاً في هذا الفصل الدراسي.',
+        ]);
+
+        try {
+            $offering->update($validated);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم تحديث طرح المقرر بنجاح.',
+                'data'    => $offering->load('course')
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشلت عملية تحديث الطرح: ' . $e->getMessage(),
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
-
-    $validated = $request->validate([
-        'course_name_ar' => 'sometimes|required|string|max:150',
-        'course_name_en' => 'sometimes|nullable|string|max:150', // إضافة الاسم الإنجليزي
-        'course_code'    => 'sometimes|required|string|max:20',
-        'description'    => 'nullable|string',
-        'semester_id'    => 'sometimes|required|exists:semesters,semester_id',
-    ], [
-        'course_name_ar.required' => 'اسم المادة بالعربي مطلوب.',
-        'course_code.required'    => 'كود المادة مطلوب.',
-        'semester_id.exists'      => 'الفصل الدراسي المحدد غير موجود.',
-    ]);
-
-    // 1. تحديث الفصل إن وُجد
-    if ($request->filled('semester_id')) {
-        $offering->update(['semester_id' => $request->semester_id]);
-    }
-
-    // 2. تحديث بيانات المادة كاملة بما فيها course_name_en
-    $offering->course->update($request->only([
-        'course_name_ar',
-        'course_name_en',
-        'course_code',
-        'description'
-    ]));
-
-    // 3. إرجاع الاستجابة (تم تصحيح course_code هنا لمنع خطأ 500)
-    return response()->json([
-        'status'  => true,
-        'message' => 'تم تحديث بيانات المادة المعروضة بنجاح.',
-        'data'    => $offering->fresh()->load([
-            'course:course_id,course_name_ar,course_name_en,course_code,description',
-            'semester:semester_id,name,academic_year'
-        ])
-    ], 200);
-}
 
     public function destroy(int $id)
     {

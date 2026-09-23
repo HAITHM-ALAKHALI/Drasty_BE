@@ -81,4 +81,76 @@ class CourseDoctorController extends Controller
             ], 500);
         }
     }
+    public function update(Request $request, int $id)
+    {
+        $assignment = CourseDoctor::find($id);
+
+        if (!$assignment) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'سجل إسناد المادة غير موجود.'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'offering_id' => 'required|exists:course_offerings,offering_id',
+            'doctor_id'   => [
+                'required',
+                'exists:doctors,doctor_id',
+                // منع تكرار نفس الدكتور لنفس الطرح مع استثناء السجل الحالي
+                Rule::unique('course_doctors')
+                    ->where(function ($query) use ($request) {
+                        return $query->where('offering_id', $request->offering_id);
+                    })
+                    ->ignore($id, 'course_doctor_id'),
+            ],
+        ], [
+            'doctor_id.unique'     => 'هذا الدكتور مسند بالفعل لهذه المادة في هذا الفصل.',
+            'offering_id.required' => 'المقرر المطروح مطلوب.',
+            'doctor_id.required'   => 'الدكتور مطلوب.',
+        ]);
+
+        try {
+            $assignment->update($validated);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم تعديل إسناد المادة للدكتور بنجاح',
+                'data'    => $assignment->load(['doctor.user', 'offering.course'])
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشلت عملية تعديل الإسناد',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy(int $id)
+    {
+        $assignment = CourseDoctor::find($id);
+
+        if (!$assignment) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'سجل الإسناد غير موجود.'
+            ], 404);
+        }
+
+        try {
+            $assignment->delete();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم إلغاء إسناد المادة للدكتور بنجاح.'
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشلت عملية الإلغاء',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
 }

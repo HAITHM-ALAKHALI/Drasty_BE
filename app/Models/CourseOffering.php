@@ -14,19 +14,17 @@ class CourseOffering extends Model
 
     public $timestamps = false;
 
-   protected $fillable = [
-    'course_code',
-    'course_name_ar',
-    'course_name_en',
-    'description',
-    'credit_hours',
-];
+    // الأعمدة الفعلية لجدول course_offerings
+    protected $fillable = [
+        'course_id',
+        'semester_id',
+    ];
 
     public function course()
     {
         return $this->belongsTo(Course::class, 'course_id', 'course_id');
     }
-    
+
     public function semester()
     {
         return $this->belongsTo(Semester::class, 'semester_id', 'semester_id');

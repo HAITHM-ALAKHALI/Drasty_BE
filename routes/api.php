@@ -7,104 +7,67 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\LevelController;
-
 use App\Http\Controllers\CourseOfferingController;
+use App\Http\Controllers\ContentController;
 use App\Http\Controllers\CourseDoctorController;
-
 use App\Http\Controllers\ContentTypeController;
 use App\Http\Controllers\SemesterController;
+use App\Http\Controllers\AuthController;
 
+/*
+|--------------------------------------------------------------------------
+| المسارات العامة (متاحة للجميع بدون تسجيل دخول أو توكن)
+|--------------------------------------------------------------------------
+*/
 
-
+// المصادقة والحسابات الأساسية
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/check-user', [UserController::class, 'checkUser']);
-
-// مسار مباشر لإضافة الأدمن تجريبياً  
 Route::post('/add-admin', [UserController::class, 'addAdmin']);
-
-//نفسه بس لل contexrmangment
 Route::post('/add-contextMangment', [UserController::class, 'addContextMangmet']);
 
-
-// مسارات إدارة الأقسام
-// هذا ال API  يعرض الاقسام
-Route::get('/departments', [DepartmentController::class, 'index']);
-
-// هذا على اساس يضيف اقسام في ال DB
-// Route::post('/departments', [DepartmentController::class, 'store']);
-
-// اضافة الدكتور لبين ال DB
-
-//  اضافة مادة
-
-
-// مسارات ربط الفصول والدكاترة
-//  يربط الكورس و السنه والترم
-//  تعيين دكتور لتدريس مادة 
-Route::post('/course-doctors', [CourseDoctorController::class, 'store']);
-
-
-
-
-// مسارات المستويات والفصول الدراسية
-Route::get('/levels', [LevelController::class, 'index']);
-
-
-
-
-
-// مسارات العرض والتهيئة للواجهات
-
-// هنا هلهن APIs  العرض
+// مسارات القراءة والاستعراض العام (GET فقط)
+Route::apiResource('departments', DepartmentController::class)->only(['index', 'show']);
+Route::apiResource('levels', LevelController::class)->only(['index', 'show']);
+Route::apiResource('semesters', SemesterController::class)->only(['index', 'show']);
+Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
+Route::apiResource('doctors', DoctorController::class)->only(['index', 'show']);
+Route::apiResource('course-offerings', CourseOfferingController::class)->only(['index', 'show']);
+Route::apiResource('course-doctors', CourseDoctorController::class)->only(['index', 'show']);
+Route::apiResource('contents', ContentController::class)->only(['index', 'show']);
 Route::get('/content-types', [ContentTypeController::class, 'index']);
-Route::get('/course-doctors', [CourseDoctorController::class, 'index']);
 
 
-// هذه  APIs الاضافه والحذف والتعديل للاقسام
-Route::post('/departments', [DepartmentController::class, 'store']);
-Route::put('/departments/{id}', [DepartmentController::class, 'update']);
-Route::delete('/departments/{id}', [DepartmentController::class, 'destroy']);
+/*
+|--------------------------------------------------------------------------
+| المسارات المحمية بواسطة JWT (تتطلب Bearer Token للإضافة والتعديل والحذف)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:api')->group(function () {
 
-// هذا حذف وتعديل واضافه للمستوى    Level
-Route::post('/levels', [LevelController::class, 'store']);
-Route::put('/levels/{id}', [LevelController::class, 'update']);
-Route::delete('/levels/{id}', [LevelController::class, 'Delet']);
-Route::get('/levels', [LevelController::class, 'index']);
+    // 1. إدارة الجلسة والمصادقة
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
 
+    // 2. الهيكل الأكاديمي (الإنشاء والتعديل والحذف فقط)
+    Route::apiResource('departments', DepartmentController::class)->except(['index', 'show']);
+    Route::apiResource('levels', LevelController::class)->except(['index', 'show']);
+    Route::apiResource('semesters', SemesterController::class)->except(['index', 'show']);
 
-// مسارات الفصول الدراسية (Semesters)
-Route::get('/semesters', [SemesterController::class, 'index']);
-Route::post('/semesters', [SemesterController::class, 'store']);
-Route::put('/semesters/{id}', [SemesterController::class, 'update']);
-Route::delete('/semesters/{id}', [SemesterController::class, 'destroy']);
+    // 3. المواد والكادر الأكاديمي (الإنشاء والتعديل والحذف فقط)
+    Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
+    Route::apiResource('doctors', DoctorController::class)->except(['index', 'show']);
 
+    // 4. طرح المقررات وإسناد الدكاترة (الإنشاء والتعديل والحذف فقط)
+    Route::apiResource('course-offerings', CourseOfferingController::class)->except(['index', 'show']);
+    Route::apiResource('course-doctors', CourseDoctorController::class)->except(['index', 'show']);
 
+    // 5. إدارة المحتوى والملفات (رفع المحاضرات والتعديل والحذف فقط)
+    Route::apiResource('contents', ContentController::class)->except(['index', 'show']);
 
-// هنا ياهيثم  API  حق الواد 
-Route::get('/courses', [CourseController::class, 'index']);
-Route::post('/courses', [CourseController::class, 'store']);
-Route::put('/courses/{id}', [CourseController::class, 'update']);
-Route::delete('/courses/{id}', [CourseController::class, 'destroy']);
-
-
-
-// وهذا حق الكورسات المعروضه
-Route::post('/course-offerings', [CourseOfferingController::class, 'store']);
-Route::get('/course-offerings', [CourseOfferingController::class, 'index']);
-Route::put('/course-offerings/{id}', [CourseOfferingController::class, 'update']);
-Route::delete('/course-offerings/{id}', [CourseOfferingController::class, 'destroy']);
-
-
-//  اضافة عرض تعديل وحذف الدكاترة
-Route::get('/doctors', [DoctorController::class, 'index']);
-Route::put('/doctors/{id}', [DoctorController::class, 'update']);
-Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
-Route::post('/doctors', [DoctorController::class, 'store']);
-
-
-
-// 1. عرض المشرفين ومدراء المحتوى
-Route::get('/staff', [UserController::class, 'indexStaff']);
-// 2. تعديل بيانات مشرف أو مدير محتوى
-Route::put('/staff/{id}', [UserController::class, 'updateStaff']);
-// 3. حذف مشرف أو مدير محتوى
-Route::delete('/staff/{id}', [UserController::class, 'destroyStaff']);
+    // 6. إدارة المشرفين والصلاحيات (محمية بالكامل)
+    Route::get('/staff', [UserController::class, 'indexStaff']);
+    Route::put('/staff/{id}', [UserController::class, 'updateStaff']);
+    Route::delete('/staff/{id}', [UserController::class, 'destroyStaff']);
+});
